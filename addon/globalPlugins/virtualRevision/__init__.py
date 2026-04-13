@@ -3,17 +3,18 @@
 #Copyright (C) 2021-2023 Rui Fontes, Rui Batista and contributors
 #This file is covered by the GNU General Public License.
 #See the file COPYING for more details.
-
 import globalPluginHandler
-import globalVars
 import api
 import config
+import controlTypes
 import NVDAObjects
 import textInfos
 import ui
 import UIAHandler
 import scriptHandler
+import speech
 import addonHandler
+
 from .interface import VirtualRevisionSettingsPanel
 
 addonHandler.initTranslation()
@@ -25,7 +26,6 @@ except:
 config.conf.spec[addonHandler.getCodeAddon().name] = {
 	'UIAConsoleGrabbing': 'boolean(default=false)',
 }
-
 TREE_SCOPE_CHILDREN = 0x2
 
 childrenCacheRequest = UIAHandler.handler.baseCacheRequest.clone()
@@ -82,12 +82,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# In case of universal apps, traverse child elements.
 		text = None
 		obj = api.getFocusObject()
+		fg_obj = api.getForegroundObject()
 		# Because it may take a while to iterate through elements, play abeep to alert users of this fact and the fact it's a UWP screen.
 		if obj.windowClassName.startswith("Windows.UI.Core"):
 			import tones
 			tones.beep(400, 300)
 			text = "\n".join(obtainUWPWindowText())
 			tones.beep(400, 50)
+		elif fg_obj.windowClassName == 'CASCADIA_HOSTING_WINDOW_CLASS':
+			info = obj.makeTextInfo(textInfos.POSITION_FIRST)
+			info.expand(textInfos.UNIT_STORY)
+			text = info.clipboardText
 		else:
 			root = None
 			for ancestor in api.getFocusAncestors():
@@ -119,14 +124,44 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				# Translators: The title of the virtual review window when the foreground window has no name, commonly seen when all windows are minimized.
 				name = _("No title")
 			# Translators: Title of the window shown for reading text on screen via a window.
+			result = []
+			for line in text.replace('\r', '').split('\n'):
+				result.append(line.rstrip())
+			text = '\r\n'.join(result)
 			ui.browseableMessage(text, title=_("Virtual review: {screenName}").format(screenName = name))
 		else:
 			# Translator: Message shown when no text can be virtualized.
 			ui.message(_("No text to display"))
 
-	#__gestures = {}
+	@scriptHandler.script(
+		description=_("Previous screen"),
+		gesture="kb:control+numpad7"
+	)
+	def script_review_previousScreen(self, gesture):
+		self.switch_screen(-1, 'Top')
 
-# Avoid use on secure screens
-if globalVars.appArgs.secure:
-	# Override the global plugin to disable it.
-	GlobalPlugin = globalPluginHandler.GlobalPlugin
+	@scriptHandler.script(
+		description=_("Next screen"),
+		gesture="kb:control+numpad9"
+	)
+	def script_review_nextScreen(self, gesture):
+		self.switch_screen(1, 'Bottom')
+
+	def switch_screen(self, direction, edge_reached_message):
+		navigator = api.getNavigatorObject()
+		lines_amount = len(navigator.UIATextPattern.GetVisibleRanges().getElement(0).GetBoundingRectangles())//4-1
+		info=api.getReviewPosition().copy()
+		info.expand(textInfos.UNIT_LINE)
+		info.collapse()
+		new_info=info.copy()
+		res=new_info.move(textInfos.UNIT_LINE, lines_amount*direction)
+		new_info.expand(textInfos.UNIT_LINE)
+		if res==0 or (direction == 1 and info.start == new_info.start):
+			ui.reviewMessage(edge_reached_message)
+		else:
+			api.setReviewPosition(new_info)
+		speech.speakTextInfo(
+			new_info,
+			unit=textInfos.UNIT_LINE,
+			reason=controlTypes.OutputReason.CARET
+		)
