@@ -14,8 +14,7 @@ import UIAHandler
 import scriptHandler
 import speech
 import addonHandler
-
-from .interface import VirtualRevisionSettingsPanel
+from .interface import VirtualRevisionSettingsPanel, VirtualRevisionMainDialog
 
 addonHandler.initTranslation()
 
@@ -59,6 +58,10 @@ def obtainUWPWindowText():
 			except AttributeError:
 				continue
 	return uwpTextList
+
+def show_message(title, text):
+	VirtualRevisionMainDialog.show_main_dialog(title=title, text=text)
+
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	scriptCategory = SCRCAT_TEXTREVIEW
@@ -128,7 +131,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			for line in text.replace('\r', '').split('\n'):
 				result.append(line.rstrip())
 			text = '\r\n'.join(result)
-			ui.browseableMessage(text, title=_("Virtual review: {screenName}").format(screenName = name))
+			show_message(title=_("Virtual review: {screenName}").format(screenName = name), text=text)
 		else:
 			# Translator: Message shown when no text can be virtualized.
 			ui.message(_("No text to display"))
@@ -165,3 +168,4 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			unit=textInfos.UNIT_LINE,
 			reason=controlTypes.OutputReason.CARET
 		)
+
