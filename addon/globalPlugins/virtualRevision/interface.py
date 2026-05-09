@@ -95,7 +95,7 @@ class VirtualRevisionMainDialog(wx.Dialog):
     def doFindText(self, text, reverse, caseSensitive):
         VirtualRevisionMainDialog._last_find_text = text
         VirtualRevisionMainDialog._last_find_text_case_sensitive = caseSensitive
-        position = self.output_field.GetInsertionPoint()+1
+        position = self.output_field.GetInsertionPoint() + (-1 if reverse else 1)
         output = self.output_field.GetValue()
         if not caseSensitive:
             output = output.lower()
