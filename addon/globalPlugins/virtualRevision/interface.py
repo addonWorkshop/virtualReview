@@ -104,7 +104,9 @@ class VirtualRevisionMainDialog(wx.Dialog):
         index = (output.rfind if reverse else output.find)(text, start, end)
         if index > -1:
             message = 'Found'
-            self.output_field.SetInsertionPoint(index)
+            # wxtreats  Surrogates as two characters
+            correct_index = len(output[:index].encode('utf-16-le')) // 2
+            self.output_field.SetInsertionPoint(correct_index)
         else:
             message = 'Not found'
         speech.cancelSpeech()
