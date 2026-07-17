@@ -43,7 +43,7 @@ class VirtualRevisionMainDialog(wx.Dialog):
         self.output_field = wx.TextCtrl(self, style=wx.TE_MULTILINE|wx.TE_READONLY|wx.TE_RICH)
         self.main_sizer.Add(self.output_field,             proportion=1, flag=wx.EXPAND)
         self.output_field.Bind(wx.EVT_KEY_DOWN, self.on_output_key_down)
-        self.output_field.write(text)
+        self.output_field.SetValue(text)
         self.SetEscapeId(wx.ID_CLOSE)
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.SetSizer(self.main_sizer)
