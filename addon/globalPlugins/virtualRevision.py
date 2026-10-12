@@ -4,15 +4,17 @@
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
+import contextlib
+
+import addonHandler
+import api
+import config
 import globalPluginHandler
 import globalVars
-import api
+import gui
+import scriptHandler
 import textInfos
 import ui
-import scriptHandler
-import addonHandler
-import config
-import gui
 import wx
 from gui import guiHelper, settingsDialogs
 
@@ -31,7 +33,7 @@ def _isTermControl(obj):
     # let an exception escape and abort the review command.
     try:
         return bool(getattr(obj, "UIAElement", None)) and obj.UIAElement.currentClassName == "TermControl"
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -48,7 +50,7 @@ def _findTermControl(obj):
             return node
         try:
             node = node.parent
-        except Exception:
+        except Exception:  # noqa: BLE001
             break
         depth += 1
     return None
@@ -130,7 +132,8 @@ def obtainUWPWindowText():
                 break
             while parent and not parent.simpleNext:
                 parent = parent.simpleParent
-            # But sometimes, the top-level window has no sibling at all (such is the case in Windows 10 Start menu).
+            # But sometimes, the top-level window has no sibling at all
+            # (such is the case in Windows 10 Start menu).
             try:
                 curObject = parent.simpleNext
             except AttributeError:
@@ -152,10 +155,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def terminate(self):
         super().terminate()
-        try:
+        with contextlib.suppress(ValueError):
             gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(VirtualRevisionSettingsPanel)
-        except ValueError:
-            pass
 
     @scriptHandler.script(
         # Translators: Message presented in input help mode.
@@ -178,7 +179,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         if term is not None:
             info = term.makeTextInfo(textInfos.POSITION_ALL)
             text = _cleanTerminalText(info.clipboardText)
-        # Because it may take a while to iterate through elements, play abeep to alert users of this fact and the fact it's a UWP screen.
+        # Because it may take a while to iterate through elements, play a beep to alert users of this fact
+        # and the fact it's a UWP screen.
         elif obj.windowClassName.startswith(("Windows.UI.Core", "Windows.UI.Input.InputSite")):
             playBeep = config.conf["virtualRevision"]["playBeep"]
             if playBeep:
@@ -203,7 +205,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         if text:
             name = api.getForegroundObject().name
             if name in (None, ""):
-                # Translators: The title of the virtual review window when the foreground window has no name, commonly seen when all windows are minimized.
+                # Translators: The title of the virtual review window when the foreground window has no name,
+                # commonly seen when all windows are minimized.
                 name = _("No title")
             # Translators: Title of the window shown for reading text on screen via a window.
             ui.browseableMessage(text, title=_("Virtual review: {screenName}").format(screenName=name))
