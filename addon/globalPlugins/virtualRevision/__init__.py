@@ -67,24 +67,21 @@ def _isDecorativeTerminalLine(line):
     # Content lines that happen to contain a "│" border still survive because the
     # letters/digits inside fall outside the range.
     stripped = line.strip()
-    if not stripped:
-        return True
-    return all(ch.isspace() or "─" <= ch <= "╿" for ch in stripped)
+    return bool(stripped) and all(ch.isspace() or "─" <= ch <= "╿" for ch in stripped)
 
 
 def _cleanTerminalText(text):
-    # Terminal cells are space-padded to the column width, and TUI apps reserve fixed
-    # rows/columns for borders, status bars, input, etc. Captured as a UNIT_STORY this
-    # turns into long runs of blank padding and box-border-only lines that bury the actual
-    # content when the review window is navigated line by line. Strip per-line trailing
-    # whitespace and drop lines that carry no real content.
+    # Terminal cells are space-padded to the column width, and TUI apps paint box-border-only
+    # lines that bury the actual content when the review window is navigated line by line.
+    # Strip per-line trailing whitespace and drop border-only lines. Empty lines are kept,
+    # only the unused rows below the content are dropped.
     lines = []
     for line in text.split("\n"):
         stripped = line.rstrip()
         if _isDecorativeTerminalLine(stripped):
             continue
         lines.append(stripped)
-    return "\n".join(lines)
+    return "\n".join(lines).rstrip("\n")
 
 
 def _getUIAConsoleObject(obj):
