@@ -18,6 +18,8 @@ import ui
 import wx
 from gui import guiHelper, settingsDialogs
 
+from .interface import VirtualRevisionMainDialog
+
 addonHandler.initTranslation()
 
 try:
@@ -209,7 +211,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 # commonly seen when all windows are minimized.
                 name = _("No title")
             # Translators: Title of the window shown for reading text on screen via a window.
-            ui.browseableMessage(text, title=_("Virtual review: {screenName}").format(screenName=name))
+            title = _("Virtual review: {screenName}").format(screenName=name)
+            VirtualRevisionMainDialog.show_main_dialog(title=title, text=text)
         else:
             # Translator: Message shown when no text can be virtualized.
             ui.message(_("No text to display"))
