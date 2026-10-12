@@ -6,7 +6,7 @@
     ],
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
-    "editor.insertSpaces": false,
+    "editor.insertSpaces": true,
     "python.analysis.stubPath": "${workspaceFolder}/.vscode/typings",
     "python.analysis.extraPaths": [
         "../nvda/source",
