@@ -4,22 +4,20 @@
 # This file is covered by the GNU General Public License.
 # See the file COPYING for more details.
 
-import contextlib
 from _ctypes import COMError
 
 import addonHandler
 import api
-import config
 import globalPluginHandler
 import globalVars
-import gui
 import scriptHandler
 import textInfos
 import ui
 import UIAHandler
 from NVDAObjects.UIA import UIA
 
-from .interface import CONFIG_SECTION, VirtualRevisionMainDialog, VirtualRevisionSettingsPanel
+from .config import get_config
+from .interface import VirtualRevisionMainDialog, add_settings, remove_settings
 
 addonHandler.initTranslation()
 
@@ -104,12 +102,6 @@ def _getUIAConsoleObject(obj):
     return UIA(UIAElement=children.GetElement(2))
 
 
-config.conf.spec[CONFIG_SECTION] = {
-    "playBeep": "boolean(default=True)",
-    "UIAConsoleGrabbing": "boolean(default=false)",
-}
-
-
 def obtainUWPWindowText():
     foreground = api.getForegroundObject()
     desktop = api.getDesktopObject()
@@ -157,13 +149,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
     def __init__(self):
         super().__init__()
-        if not globalVars.appArgs.secure:
-            gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(VirtualRevisionSettingsPanel)
+        self.config = get_config()
+        add_settings()
 
     def terminate(self):
         super().terminate()
-        with contextlib.suppress(ValueError):
-            gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(VirtualRevisionSettingsPanel)
+        remove_settings()
 
     @scriptHandler.script(
         # Translators: Message presented in input help mode.
@@ -189,7 +180,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         # Because it may take a while to iterate through elements, play a beep to alert users of this fact
         # and the fact it's a UWP screen.
         elif obj.windowClassName.startswith(("Windows.UI.Core", "Windows.UI.Input.InputSite")):
-            playBeep = config.conf[CONFIG_SECTION]["playBeep"]
+            playBeep = self.config["play_beep"]
             if playBeep:
                 import tones
 
@@ -207,7 +198,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 info = root.makeTextInfo(textInfos.POSITION_ALL)
                 text = info.clipboardText.replace("\0", " ")
             if obj.windowClassName == "ConsoleWindowClass":
-                if not isinstance(obj, UIA) and config.conf[CONFIG_SECTION]["UIAConsoleGrabbing"]:
+                if not isinstance(obj, UIA) and self.config["uia_console_grabbing"]:
                     obj = _getUIAConsoleObject(obj) or obj
                 info = obj.makeTextInfo(textInfos.POSITION_ALL)
                 text = info.clipboardText.rstrip()

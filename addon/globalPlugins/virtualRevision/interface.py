@@ -1,41 +1,54 @@
 import addonHandler
-import config
 import gui
 import speech
 import ui
 import wx
 from cursorManager import FindDialog
-from gui import guiHelper, settingsDialogs
+
+from .config import get_config
+from .interface_helpers import ConfigBoundSettingsPanel, bind_with_config
 
 addonHandler.initTranslation()
 
-# Named after the add-on id so it does not share settings with the upstream Virtual Review.
-CONFIG_SECTION = addonHandler.getCodeAddon().name
 
+class VirtualRevisionSettingsPanel(ConfigBoundSettingsPanel):
+    title = addonHandler.getCodeAddon().manifest["summary"]
 
-class VirtualRevisionSettingsPanel(settingsDialogs.SettingsPanel):
-    # Translators: Title of the Virtual Review Rework settings panel.
-    title = _("Virtual Review Rework")
-
-    def makeSettings(self, settingsSizer):
-        sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
-        # Translators: Label for the checkbox that toggles the alert beeps for UWP windows.
-        self.playBeepCheckBox = sHelper.addItem(
-            wx.CheckBox(self, label=_("Play alert &beeps when reviewing UWP windows")),
-        )
-        self.playBeepCheckBox.SetValue(config.conf[CONFIG_SECTION]["playBeep"])
-        self.UIAConsoleGrabbingCheckBox = sHelper.addItem(
-            wx.CheckBox(
-                self,
-                # Translators: Label for the checkbox that makes the add-on read legacy consoles via UIA.
-                label=_("Always use &UIA implementation for consoles (gets more text)"),
+    def makeSettings(self, settings_sizer):
+        self.config = get_config()
+        sizer = gui.guiHelper.BoxSizerHelper(self, sizer=settings_sizer)
+        self.play_beep_checkbox = bind_with_config(
+            sizer.addItem(
+                wx.CheckBox(
+                    self,
+                    # Translators: Label for the checkbox that toggles the alert beeps for UWP windows.
+                    label=_("Play alert &beeps when reviewing UWP windows"),
+                ),
             ),
+            "play_beep",
         )
-        self.UIAConsoleGrabbingCheckBox.SetValue(config.conf[CONFIG_SECTION]["UIAConsoleGrabbing"])
+        self.uia_console_grabbing_checkbox = bind_with_config(
+            sizer.addItem(
+                wx.CheckBox(
+                    self,
+                    # Translators: Label for the checkbox that makes the add-on read legacy consoles via UIA.
+                    label=_("Always use &UIA implementation for consoles (gets more text)"),
+                ),
+            ),
+            "uia_console_grabbing",
+        )
 
-    def onSave(self):
-        config.conf[CONFIG_SECTION]["playBeep"] = self.playBeepCheckBox.GetValue()
-        config.conf[CONFIG_SECTION]["UIAConsoleGrabbing"] = self.UIAConsoleGrabbingCheckBox.GetValue()
+    def on_save_callback(self):
+        # Settings are read at use time, so nothing has to be reapplied on save.
+        pass
+
+
+def add_settings():
+    gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(VirtualRevisionSettingsPanel)
+
+
+def remove_settings():
+    gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(VirtualRevisionSettingsPanel)
 
 
 class VirtualRevisionMainDialog(wx.Dialog):
