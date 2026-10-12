@@ -1,4 +1,5 @@
 # Virtual Review
+Reworked (see commit history)
 
 ## In loving memory of Rui Fontes
 
