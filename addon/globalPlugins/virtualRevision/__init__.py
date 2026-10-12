@@ -5,6 +5,7 @@
 # See the file COPYING for more details.
 
 import contextlib
+from _ctypes import COMError
 
 import addonHandler
 import api
@@ -15,10 +16,10 @@ import gui
 import scriptHandler
 import textInfos
 import ui
-import wx
-from gui import guiHelper, settingsDialogs
+import UIAHandler
+from NVDAObjects.UIA import UIA
 
-from .interface import VirtualRevisionMainDialog
+from .interface import CONFIG_SECTION, VirtualRevisionMainDialog, VirtualRevisionSettingsPanel
 
 addonHandler.initTranslation()
 
@@ -26,6 +27,8 @@ try:
     from globalCommands import SCRCAT_TEXTREVIEW
 except ImportError:
     SCRCAT_TEXTREVIEW = None
+
+TREE_SCOPE_CHILDREN = 0x2
 
 
 def _isTermControl(obj):
@@ -84,25 +87,30 @@ def _cleanTerminalText(text):
     return "\n".join(lines)
 
 
-config.conf.spec["virtualRevision"] = {
+def _getUIAConsoleObject(obj):
+    # Returns a UIA object for the text area of a console window that NVDA reads via the legacy
+    # implementation, or None. The UIA text area exposes more text than the legacy console buffer.
+    if UIAHandler.handler is None:
+        return None
+    cacheRequest = UIAHandler.handler.baseCacheRequest.clone()
+    cacheRequest.TreeScope |= TREE_SCOPE_CHILDREN
+    try:
+        children = UIAHandler.handler.clientObject.ElementFromHandleBuildCache(
+            obj.windowHandle,
+            cacheRequest,
+        ).GetCachedChildren()
+    except COMError:
+        return None
+    # The text area is the third child of the console window.
+    if not children or children.length < 3:
+        return None
+    return UIA(UIAElement=children.GetElement(2))
+
+
+config.conf.spec[CONFIG_SECTION] = {
     "playBeep": "boolean(default=True)",
+    "UIAConsoleGrabbing": "boolean(default=false)",
 }
-
-
-class VirtualRevisionSettingsPanel(settingsDialogs.SettingsPanel):
-    # Translators: Title of the Virtual Revision settings panel.
-    title = _("Virtual Revision")
-
-    def makeSettings(self, settingsSizer):
-        sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
-        # Translators: Label for the checkbox that toggles the alert beeps for UWP windows.
-        self.playBeepCheckBox = sHelper.addItem(
-            wx.CheckBox(self, label=_("Play alert &beeps when reviewing UWP windows")),
-        )
-        self.playBeepCheckBox.SetValue(config.conf["virtualRevision"]["playBeep"])
-
-    def onSave(self):
-        config.conf["virtualRevision"]["playBeep"] = self.playBeepCheckBox.GetValue()
 
 
 def obtainUWPWindowText():
@@ -184,7 +192,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
         # Because it may take a while to iterate through elements, play a beep to alert users of this fact
         # and the fact it's a UWP screen.
         elif obj.windowClassName.startswith(("Windows.UI.Core", "Windows.UI.Input.InputSite")):
-            playBeep = config.conf["virtualRevision"]["playBeep"]
+            playBeep = config.conf[CONFIG_SECTION]["playBeep"]
             if playBeep:
                 import tones
 
@@ -202,6 +210,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
                 info = root.makeTextInfo(textInfos.POSITION_ALL)
                 text = info.clipboardText.replace("\0", " ")
             if obj.windowClassName == "ConsoleWindowClass":
+                if not isinstance(obj, UIA) and config.conf[CONFIG_SECTION]["UIAConsoleGrabbing"]:
+                    obj = _getUIAConsoleObject(obj) or obj
                 info = obj.makeTextInfo(textInfos.POSITION_ALL)
                 text = info.clipboardText.rstrip()
         if text:

@@ -1,11 +1,41 @@
 import addonHandler
+import config
 import gui
 import speech
 import ui
 import wx
 from cursorManager import FindDialog
+from gui import guiHelper, settingsDialogs
 
 addonHandler.initTranslation()
+
+# Named after the add-on id so it does not share settings with the upstream Virtual Review.
+CONFIG_SECTION = addonHandler.getCodeAddon().name
+
+
+class VirtualRevisionSettingsPanel(settingsDialogs.SettingsPanel):
+    # Translators: Title of the Virtual Review Rework settings panel.
+    title = _("Virtual Review Rework")
+
+    def makeSettings(self, settingsSizer):
+        sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+        # Translators: Label for the checkbox that toggles the alert beeps for UWP windows.
+        self.playBeepCheckBox = sHelper.addItem(
+            wx.CheckBox(self, label=_("Play alert &beeps when reviewing UWP windows")),
+        )
+        self.playBeepCheckBox.SetValue(config.conf[CONFIG_SECTION]["playBeep"])
+        self.UIAConsoleGrabbingCheckBox = sHelper.addItem(
+            wx.CheckBox(
+                self,
+                # Translators: Label for the checkbox that makes the add-on read legacy consoles via UIA.
+                label=_("Always use &UIA implementation for consoles (gets more text)"),
+            ),
+        )
+        self.UIAConsoleGrabbingCheckBox.SetValue(config.conf[CONFIG_SECTION]["UIAConsoleGrabbing"])
+
+    def onSave(self):
+        config.conf[CONFIG_SECTION]["playBeep"] = self.playBeepCheckBox.GetValue()
+        config.conf[CONFIG_SECTION]["UIAConsoleGrabbing"] = self.UIAConsoleGrabbingCheckBox.GetValue()
 
 
 class VirtualRevisionMainDialog(wx.Dialog):
