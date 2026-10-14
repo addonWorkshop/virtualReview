@@ -51,21 +51,36 @@ def remove_settings():
     gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(VirtualRevisionSettingsPanel)
 
 
-class VirtualRevisionMainDialog(wx.Dialog):
+# A frame rather than a dialog: Windows restores a dialog's focus by itself on activation,
+# so on_activate couldn't defer it.
+class VirtualRevisionMainDialog(wx.Frame):
     _last_find_text = None
     _last_find_text_case_sensitive = None
 
     def __init__(self, title: str, text: str):
-        super().__init__(parent=gui.mainFrame, title=title, style=wx.CLOSE_BOX)
+        super().__init__(parent=gui.mainFrame, title=title)
         self.main_sizer = wx.BoxSizer(wx.VERTICAL)
         self.output_field = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
         self.main_sizer.Add(self.output_field, proportion=1, flag=wx.EXPAND)
         self.output_field.Bind(wx.EVT_KEY_DOWN, self.on_output_key_down)
         self.output_field.SetValue(text)
-        self.SetEscapeId(wx.ID_CLOSE)
         self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.Bind(wx.EVT_ACTIVATE, self.on_activate)
         self.SetSizer(self.main_sizer)
         self.main_sizer.Fit(self)
+
+    def on_activate(self, evt):
+        if not evt.GetActive():
+            evt.Skip()
+            return
+        # Restoring the field's focus right away, as wx does, fires its focus event before
+        # the Alt+Tab switcher's ones, and NVDA's winEvent limiter drops it. A timer runs
+        # after activation completes, so the field's focus event comes last.
+        wx.CallLater(0, self.restore_field_focus)
+
+    def restore_field_focus(self):
+        if self and self.IsActive():
+            self.output_field.SetFocus()
 
     @classmethod
     def show_main_dialog(cls, title: str, text: str):
@@ -74,7 +89,7 @@ class VirtualRevisionMainDialog(wx.Dialog):
         gui.mainFrame.Raise()
         dialog.Show()
         dialog.Maximize()
-        dialog.SetFocus()
+        dialog.output_field.SetFocus()
 
     def on_close(self, event):
         self.Destroy()
