@@ -2,6 +2,7 @@ import addonHandler
 import gui
 import speech
 import ui
+import winUser
 import wx
 from cursorManager import FindDialog
 
@@ -51,6 +52,20 @@ def remove_settings():
     gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(VirtualRevisionSettingsPanel)
 
 
+EM_SETLANGOPTIONS = 0x0478
+EM_GETLANGOPTIONS = 0x0479
+IMF_AUTOFONT = 0x0002
+IMF_DUALFONT = 0x0080
+
+
+def disable_font_binding(field: wx.TextCtrl):
+    # When the text starts with a character the default font lacks (e.g. "※"), RichEdit's font
+    # binding makes SetValue of a large text take seconds to tens of seconds.
+    hwnd = field.GetHandle()
+    options = winUser.sendMessage(hwnd, EM_GETLANGOPTIONS, 0, 0)
+    winUser.sendMessage(hwnd, EM_SETLANGOPTIONS, 0, options & ~(IMF_AUTOFONT | IMF_DUALFONT))
+
+
 # A frame rather than a dialog: Windows restores a dialog's focus by itself on activation,
 # so on_activate couldn't defer it.
 class VirtualRevisionMainDialog(wx.Frame):
@@ -63,6 +78,7 @@ class VirtualRevisionMainDialog(wx.Frame):
         self.output_field = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
         self.main_sizer.Add(self.output_field, proportion=1, flag=wx.EXPAND)
         self.output_field.Bind(wx.EVT_KEY_DOWN, self.on_output_key_down)
+        disable_font_binding(self.output_field)
         self.output_field.SetValue(text)
         self.Bind(wx.EVT_CLOSE, self.on_close)
         self.Bind(wx.EVT_ACTIVATE, self.on_activate)
